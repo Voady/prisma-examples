@@ -1,7 +1,14 @@
 import { Prisma, PrismaClient } from '@prisma/client'
 import express from 'express'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  log: [
+    {
+      emit: 'stdout',
+      level: 'query'
+    }
+  ]
+})
 const app = express()
 
 app.use(express.json())
@@ -110,11 +117,29 @@ app.get('/user/:id/drafts', async (req, res) => {
 })
 
 app.get(`/post/:id`, async (req, res) => {
-  const { id }: { id?: number } = req.params
+  const { id }: { id?: string } = req.params
 
   const post = await prisma.post.findUnique({
     where: { id: Number(id) },
   })
+  res.json(post)
+})
+
+/**
+ * New handler demostrating that IN-clauses is problemetatic when using
+ * prepared statements if no upper bound is set on the number of IN parameters
+ */
+app.get(`/posts`, async(req, res) => {
+  const queryParams = req.query
+  const ids = queryParams.ids as string[]
+  const post = await prisma.post.findMany({
+    where: {
+      id: {
+        in: ids.map(x => Number(x))
+      }
+    }
+  })
+
   res.json(post)
 })
 
